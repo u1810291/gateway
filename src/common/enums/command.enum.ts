@@ -1,0 +1,83 @@
+export enum Command {
+  // USER
+  USER_CREATE = 'user:create',
+  USER_COMPANY_CREATE = 'user:companyCreate',
+  USER_GET_COMPANIES = 'user:getCompanies',
+  USER_UPDATE = 'user:update',
+  USER_GET_ALL_BY_PAGINATION = 'user:getAllByPagination',
+  USER_GET_ALL_GROUPS = 'user:getAllGroups',
+  USER_ADD_TO_GROUP = 'user:addToGroup',
+  USER_REMOVE_FROM_GROUP = 'user:removeFromGroup',
+  COMPANY_CREATE = 'company:create',
+  COMPANY_UPDATE_SETTINGS = 'company:updateSettings',
+  // USER TABLE
+  USER_TABLE_CREATE = 'userTable:create',
+  USER_TABLE_GET = 'userTable:getUserTable',
+  USER_TABLE_UPDATE = 'userTable:update',
+  // COMPANY
+  COMPANY_UPDATE = 'company:update',
+  // DELIVERY
+  DELIVERY_TIME_RANGE = 'delivery:timeRange',
+  // TARIFF
+  TARIFF_CREATE = 'tariff:create',
+  TARIFF_UPDATE = 'tariff:update',
+  TARIFF_DELETE = 'tariff:delete',
+  TARIFF_TARIFFS_BY_COMPANY = 'tariff:tariffsByCompany',
+  TARIFF_GET = 'tariff:get',
+  TARIFF_CALCULATE_BY_CAPACITY = 'tariff:calculateByCapacity',
+  TARIFF_CALCULATE = 'tariff:calculate',
+  // ORDER
+  ORDER_CREATE = 'order:create',
+  ORDER_COURIER_ACCEPTED = 'order:courierAccepted',
+  ORDER_PUSH_IMAGE = 'order:pushImage',
+  ORDER_CHANGE_ORDER_STATUS = 'order:changeOrderStatus',
+  AUTH_GET_ACCESS_TOKEN = 'auth:getAccessToken',
+  // AUTH
+  AUTH_GET_REFRESH_TOKEN = 'auth:getRefreshToken',
+  // WMS
+  WMS_CREATE_STORAGE = 'dc:createStorage',
+  WMS_GET_STORAGE_BY_ID = 'dc:getStorageById',
+  WMS_CREATE_SCHEDULE = 'dc:createSchedule',
+  WMS_GET_SCHEDULE = 'dc:getSchedule',
+  WMS_CREATE_HOLIDAY = 'dc:createHoliday',
+  WMS_DELETE_HOLIDAY = 'dc:deleteHoliday',
+  WMS_STORAGE_GET_STATUS = 'dc:getStorageStatus',
+  WMS_UPDATE_STORAGE = 'dc:updateStorage',
+  WMS_ORDER_SET_CODE = 'dc:orderSetCode',
+  WMS_ADD_ROUTE = 'dc:addRoute',
+  WMS_ROUTE_LIST = 'dc:routeList',
+  WMS_RECEIVE_ORDER = 'dc:receiveOrder',
+  WMS_CREATE_EQUIPMENT = 'dc:createEquipment',
+  WMS_DELETE_EQUIPMENT = 'dc:deleteEquipment',
+  WMS_UPDATE_EQUIPMENT = 'dc:updateEquipment',
+  WMS_EQUIPMENT_GET_BY_ID = 'dc:getEquipmentById',
+  WMS_EQUIPMENT_GET_ZONES = 'dc:getEquipmentZones',
+  WMS_CREATE_ATTACH_ORDER_TO_CELL = 'dc:attachOrderToCell',
+  WMS_GET_STORAGES_BY_COMPANY_ID = 'dc:getStoragesByCompanyId',
+  WMS_EQUIPMENT_ORDERS_IN_CELL = 'dc:getEquipmentOrdersInCell',
+  // COMPANY_GROUP
+  COMPANY_GROUP_GET_ALL_GROUPS = 'companyGroup:getAllGroups',
+  COMPANY_GROUP_GET_ALL_ROLES = 'companyGroup:getAllRoles',
+  COMPANY_GROUP_CREATE_GROUP = 'companyGroup:createGroup',
+  COMPANY_GROUP_UPDATE_GROUP = 'companyGroup:updateGroup',
+  COMPANY_GROUP_FIND_ONE_BY_ID = 'companyGroup:findOneById',
+  COMPANY_GROUP_DELETE_GROUP_BY_ID = 'companyGroup:deleteGroupById',
+  COMPANY_GROUP_ADD_ROLE_TO_GROUP = 'companyGroup:addRoleToGroup',
+  COMPANY_GROUP_DELETE_ROLE_FROM_GROUP = 'companyGroup:deleteRoleFromGroup',
+  // ROUTE
+  ROUTE_CREATE_BY_DC_ID = 'route:createByDCId',
+  ROUTE_CREATE_BY_POOL_ID = 'route:createByPoolId',
+  ROUTE_LIST_BY_COMPANY = 'route:listByCompany',
+  ROUTE_LIST_ORDER_DELIVERY_BY_COMPANY = 'route:listOrderDeliveryByCompany',
+  ROUTE_GET_ORDERS_BY_ROUTE_ID = 'route:getOrdersByRouteId',
+  // Geo
+  GEO_POLYGONS_LIST = 'geo:polygonsList',
+  GEO_CREATE_POLYGON = 'geo:createPolygon',
+  // Zone
+  ZONES_LIST = 'zone:list',
+  ZONE_CREATE = 'zone:create',
+  // Pool
+  POOL_LIST = 'pool:list',
+  POOL_GET_ORDERS_BY_POOL_ID = 'pool:getOrdersByPoolId',
+  POOL_MOVE_POOL = 'pool:movePool',
+}

@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: sello-logistics-test
+  labels:
+    app: gateway
+
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 3
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - gateway
+                topologyKey: "kubernetes.io/hostname"
+      serviceAccountName: api-reader
+      containers:
+        - name: gateway
+          image: gitlab.sello.uz:5050/sello/logistics/backend/gateway:latest
+          env:
+            - name: APP_NAME
+              value: gateway
+            - name: DATABASE_URL
+              value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/store?schema=test"
+            - name: APP_CORS_ORIGIN
+              value: "*"
+            - name: SENTRY_DSN
+              value: "http://0b4622b0fe0a473983db90cc096c3906@10.0.1.23:9000/12"
+            - name: RABBITMQ_URI
+              value: "amqp://$(RABBITMQ_USERNAME):$(RABBITMQ_PASSWORD)@$(RABBITMQ_HOST):$(RABBITMQ_PORT)/slp.test"
+          envFrom:
+            - configMapRef:
+                name: service-config
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "5000m"
+      imagePullSecrets:
+        - name: registry-key

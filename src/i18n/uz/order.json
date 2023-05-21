@@ -1,0 +1,29 @@
+{
+  "id": "ID",
+  "note": "eslatma",
+  "payment_type": "to'lov turi",
+  "piece_count": "barcha soni",
+  "sender": {
+    "address_type": "jo'natuvchining manzili turi",
+    "apartment": "jo'natuvchining kvartirasi",
+    "email": "jo'natuvchining elektron pochtasi",
+    "landmark": "jo'natuvchining manzil mo'ljali",
+    "name": "jo'natuvchining nomi",
+    "phone": "jo'natuvchining telefon raqami",
+    "street": "jo'natuvchining ko'chasi"
+  },
+  "recipient": {
+    "address_type": "qabul qiluvchining manzili turi",
+    "apartment": "qabul qiluvchining kvartirasi",
+    "email": "qabul qiluvchining elektron pochtasi",
+    "landmark": "qabul qiluvchining manzil mo'ljali",
+    "name": "qabul qiluvchining nomi",
+    "phone": "qabul qiluvchining telefon raqami",
+    "street": "qabul qiluvchining ko'chasi"
+  },
+  "recipient_not_available": "agar qabul qiluvchi bilan aloqa bo'lmasa, nima qilish kerak",
+  "fragile": "sinuvchan",
+  "status": "holat",
+  "updated_at": "yangilangan",
+  "created_at": "yaratilgan"
+}

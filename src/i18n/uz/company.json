@@ -1,0 +1,9 @@
+{
+  "name": "nomi",
+  "address": "manzil",
+  "phone": "telefon",
+  "email": "elektron pochta",
+  "status": "holat",
+  "created_at": "yaratilgan",
+  "updated_at": "yangilangan"
+}

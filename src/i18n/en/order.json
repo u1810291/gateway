@@ -1,0 +1,29 @@
+{
+  "id": "id",
+  "note": "note",
+  "payment_type": "payment_type",
+  "piece_count": "piece count",
+  "sender": {
+    "address_type": "sender address type",
+    "apartment": "sender apartment",
+    "email": "sender email",
+    "landmark": "sender landmark",
+    "name": "sender name",
+    "phone": "sender phone",
+    "street": "sender street"
+  },
+  "recipient": {
+    "address_type": "recipient address type",
+    "apartment": "recipient apartment",
+    "email": "recipient email",
+    "landmark": "recipient landmark",
+    "name": "recipient name",
+    "phone": "recipient phone",
+    "street": "recipient street"
+  },
+  "recipient_not_available": "what to do if the recipient is not available",
+  "fragile": "fragile",
+  "status": "status",
+  "updated_at": "updated at",
+  "created_at": "created at"
+}

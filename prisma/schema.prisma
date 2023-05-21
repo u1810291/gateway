@@ -1,0 +1,1118 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["interactiveTransactions", "tracing"]
+  binaryTargets   = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum DriverStatus {
+  BUSY
+  AVAILABLE
+  UNAVAILABLE
+}
+
+model User {
+  id        String     @id @db.Uuid
+  username  String     @unique @db.VarChar(50)
+  status    UserStatus
+  email     String     @unique @db.VarChar(150)
+  firstName String     @map("first_name") @db.VarChar(150)
+  lastName  String?    @map("last_name") @db.VarChar(150)
+  phone     String?    @unique @db.VarChar(20)
+  roleId    String     @default("") @map("role_id")
+  pushToken String?    @map("push_token") @db.VarChar(255)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamp
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+  profile   Profile?
+
+  userTable     UserTable[]
+  driver        Driver?
+  userCompany   UserCompany[]
+  storageWorker StorageWorker[]
+  actRow        ActRow[]
+  tTNRow        TTNRow[]
+
+  @@map("user")
+}
+
+model CompanyRole {
+  id              String @id @db.Uuid
+  roleId          String @map("role_id") @db.Uuid
+  name            String @map("name")
+  companyId       String @map("company_id") @db.Uuid
+  primaryRoleName String @map("primary_role_name")
+
+  @@map("company_role")
+}
+
+model Profile {
+  userId    String  @unique @map("user_id") @db.Uuid
+  phone     String  @unique @db.VarChar(15)
+  firstName String? @map("first_name") @db.VarChar(100)
+  lastName  String? @map("last_name") @db.VarChar(100)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("profile")
+}
+
+enum OrderRecipientNotAvailable {
+  DO_NOT_DELIVERY
+  LEAVE_AT_DOOR
+  LEAVE_WITH_CONCIERGE
+}
+
+enum OrderStatus {
+  UNASSIGNED
+  SORTED
+  ROUTED
+  COURIER_ACCEPTED
+  ARRIVED
+  DELIVERED
+  CANCELED
+  NEW
+  SHIPMENT_FROM
+  RECEIVED
+  READY
+  COMPLETED
+}
+
+model Order {
+  id                    String                     @id @db.Uuid
+  cellCode              String?                    @map("cell_code")
+  code                  String?                    @unique @db.Uuid
+  storageId             String?                    @map("storage_id") @db.Uuid
+  externalId            String                     @map("external_id") @db.VarChar(36)
+  externalNumber        String?                    @map("external_number") @db.VarChar(36)
+  senderId              String                     @map("sender_id") @db.Uuid
+  poolId                String?                    @map("pool_id") @db.Uuid
+  recipientId           String                     @map("recipient_id") @db.Uuid
+  orderGroupId          String                     @map("order_group_id") @db.Uuid
+  companyId             String                     @map("company_id") @db.Uuid
+  number                Int
+  deliveryStartAt       DateTime                   @map("delivery_start_at")
+  recipientNotAvailable OrderRecipientNotAvailable @map("recipient_not_available")
+  fragile               Boolean
+  status                OrderStatus
+  note                  String?                    @db.VarChar(255)
+  createdAt             DateTime                   @default(now()) @map("created_at")
+  updatedAt             DateTime                   @default(now()) @updatedAt @map("updated_at")
+  images                String[]
+  name                  String                     @db.VarChar(255)
+  factor                Float                      @default(1) @map("factor")
+  price                 Float
+  parentId              String?                    @map("parent_id") @db.Uuid
+  dimensionId           String                     @unique @map("dimension_id") @db.Uuid
+  isCanceled            Boolean?                   @map("is_canceled")
+  boxId                 String?                    @map("box_id") @db.Uuid
+  selfDelivery          Boolean?                   @map("self_delivery")
+
+  box             Box?            @relation(fields: [boxId], references: [id])
+  dimension       Dimension       @relation(fields: [dimensionId], references: [id])
+  recipient       Recipient       @relation(fields: [recipientId], references: [id])
+  sender          Sender          @relation(fields: [senderId], references: [id])
+  orderGroup      OrderGroup      @relation(fields: [orderGroupId], references: [id])
+  company         Company         @relation(fields: [companyId], references: [id])
+  storage         Storage?        @relation(fields: [storageId], references: [id])
+  pool            Pool?           @relation(fields: [poolId], references: [id])
+  parent          Order?          @relation("ParentChildren", fields: [parentId], references: [id])
+  children        Order[]         @relation("ParentChildren")
+  orderDeliveries OrderDelivery[]
+  cellOrders      CellOrder[]
+  tasks           TaskOrder[]
+  orderPayment    OrderPayment[]
+  storageDebit    StorageDebit[]
+  documentAct     DocumentAct[]
+  documentTTN     DocumentTTN[]
+  properties      OrderProperty[]
+
+  @@unique([externalId, companyId])
+  @@map("order")
+}
+
+model Box {
+  id       String  @id @db.Uuid
+  orderId  String  @map("order_id") @db.Uuid
+  parentId String? @map("parent_id") @db.Uuid
+
+  childeren Box[]   @relation(name: "BoxToBox")
+  order     Order[]
+  parent    Box?    @relation(name: "BoxToBox", fields: [parentId], references: [id])
+
+  @@map("box")
+}
+
+enum OrderPaymentType {
+  CASH
+  CARD
+  WALLET
+  ONLINE
+}
+
+enum OrderPayer {
+  SENDER
+  RECIPIENT
+}
+
+model OrderChargeItem {
+  id          String           @id @default(uuid()) @db.Uuid
+  groupId     String           @map("group_id") @db.Uuid
+  paymentType OrderPaymentType @map("payment_type")
+  orderPayer  OrderPayer       @map("order_payer")
+  isPaid      Boolean          @map("is_paid")
+  charge      Int              @map("charge")
+
+  orderGroup OrderGroup @relation(fields: [groupId], references: [id])
+
+  @@map("order_charge_item")
+}
+
+model OrderGroup {
+  id            String   @unique @db.Uuid
+  deliveryPrice Int      @map("delivery_price")
+  companyId     String   @map("company_id") @db.Uuid
+  orderIds      String[] @map("order_ids")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  orders           Order[]
+  orderChargeItems OrderChargeItem[]
+  company          Company           @relation(fields: [companyId], references: [id])
+
+  @@map("order_group")
+}
+
+enum PointType {
+  COORDINATE
+  PUP
+  DC
+  CARGO
+  POSTAMAT
+}
+
+enum DeliveryAddressType {
+  RESIDENTIAL
+  BUSINESS
+}
+
+model Sender {
+  id             String              @id @db.Uuid
+  name           String              @db.VarChar(255)
+  addressType    DeliveryAddressType @map("address_type")
+  pointType      PointType           @map("point_type")
+  pointId        String?             @map("point_id") @db.Uuid
+  contractNumber String?             @map("contract_number") @db.VarChar(255)
+  contractDate   String?             @map("contract_date") @db.VarChar(255)
+  coordinate     String              @db.VarChar(255)
+  phones         String[]            @db.VarChar(20)
+  dcId           String              @map("dc_id") @db.Uuid
+  zoneId         String              @map("zone_id") @db.Uuid
+  email          String?             @db.VarChar(255)
+  apartment      String?             @db.VarChar(255)
+  street         String?             @db.VarChar(255)
+  landmark       String?             @db.VarChar(255)
+
+  orders      Order[]
+  workingDays WorkingDay[]
+
+  @@map("sender")
+}
+
+model WorkingDay {
+  id       String   @id @db.Uuid
+  date     DateTime @db.Date
+  senderId String   @map("sender_id") @db.Uuid
+  sender   Sender   @relation(fields: [senderId], references: [id])
+  hours    Hour[]
+
+  @@map("working_day")
+}
+
+model Hour {
+  id           String   @id @db.Uuid
+  from         DateTime @db.Time
+  to           DateTime @db.Time
+  workingDayId String   @map("working_day_id") @db.Uuid
+
+  workingDay WorkingDay @relation(fields: [workingDayId], references: [id])
+
+  @@map("hour")
+}
+
+model Recipient {
+  id          String              @id @db.Uuid
+  name        String              @db.VarChar(255)
+  addressType DeliveryAddressType @map("address_type")
+  pointType   PointType           @map("point_type")
+  pointId     String?             @map("point_id") @db.Uuid
+  coordinate  String              @db.VarChar(255)
+  phones      String[]            @db.VarChar(20)
+  dcId        String              @map("dc_id") @db.Uuid
+  zoneId      String              @map("zone_id") @db.Uuid
+  email       String?             @db.VarChar(255)
+  apartment   String?             @db.VarChar(255)
+  street      String?             @db.VarChar(255)
+  landmark    String?             @db.VarChar(255)
+  previousId  String?             @map("previous_id") @db.Uuid
+  orders      Order[]
+
+  @@map("recipient")
+}
+
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Company {
+  id        String        @id @db.Uuid
+  name      String        @db.VarChar(255)
+  address   String?       @db.VarChar(255)
+  phone     String?       @db.VarChar(100)
+  email     String?       @db.VarChar(100)
+  status    CompanyStatus
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamp
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  storages        Storage[]
+  pools           Pool[]
+  vehicles        Vehicle[]
+  orders          Order[]
+  companySettings CompanySettings[]
+  orderGroups     OrderGroup[]
+  zones           Zone[]
+  clients         CompanyClient[]
+  routePlanners   RoutePlanner[]
+  tariff          Tariff[]
+  timeOfDelivery  TimeOfDelivery[]
+
+  @@map("company")
+}
+
+enum CompanyPoolScheduleType {
+  ASAP
+  ALAP
+  OPTIMAL
+}
+
+enum TariffCalculateType {
+  BY_WEIGHT
+}
+
+enum SortType {
+  SIMPLE
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model CompanySettings {
+  companyId               String                  @id @map("company_id") @db.Uuid
+  defaultPoolScheduleType CompanyPoolScheduleType @map("default_pool_schedule_type")
+  deliveryPeriod          Int                     @map("delivery_period")
+  density                 Int
+  routePlanned            Int                     @default(200) @map("route_planned")
+  pointServeTime          Int                     @map("point_serve_time")
+  tariffCalculateType     TariffCalculateType     @map("tariff_calculate_type")
+  maxPointPerRoute        Int                     @map("max_point_per_route") @db.SmallInt
+  maxTimePerRoute         Int                     @map("max_time_per_route") @db.SmallInt
+  maxOrdersPerRoute       Int                     @map("max_orders_per_route") @db.SmallInt
+  sortType                SortType                @map("sort_type")
+  imRouteLockedUserId     String?                 @map("im_route_locked_user_id") @db.Uuid
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("company_settings")
+}
+
+model CompanyClient {
+  id         String   @id @db.Uuid
+  name       String   @db.VarChar(255)
+  timezone   String   @db.VarChar(100)
+  webhookUrl String   @map("webhook_url") @db.VarChar(255)
+  companyId  String   @map("company_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("company_client")
+}
+
+enum DeliveryType {
+  INTERMODAL
+  INTERZONE
+  TRANSBORDER
+}
+
+enum PoolStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Pool {
+  id        String     @id @db.Uuid
+  companyId String     @map("company_id") @db.Uuid
+  number    Int
+  code      String     @db.VarChar(21)
+  from      DateTime   @db.Timestamp
+  to        DateTime   @db.Timestamp
+  status    PoolStatus
+  storageId String     @map("storage_id") @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamp
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  company         Company             @relation(fields: [companyId], references: [id])
+  routes          Route[]
+  orderDeliveries PoolOrderDelivery[]
+  storage         Storage             @relation(fields: [storageId], references: [id])
+  orders          Order[]
+
+  @@unique([companyId, code])
+  @@map("pool")
+}
+
+model PoolOrderDelivery {
+  poolId          String @map("pool_id") @db.Uuid
+  orderDeliveryId String @map("order_delivery_id") @db.Uuid
+
+  pool          Pool          @relation(fields: [poolId], references: [id])
+  orderDelivery OrderDelivery @relation(fields: [orderDeliveryId], references: [id])
+
+  @@id([poolId, orderDeliveryId])
+  @@unique([poolId, orderDeliveryId])
+  @@map("pool_order_delivery")
+}
+
+enum RouteStatus {
+  ROUTE_PLANNED
+  ROUTED
+  DELIVERED
+  COURIER_ACCEPTED
+  COURIER_ON_WAY
+}
+
+model Route {
+  id            String      @id @db.Uuid
+  poolId        String      @map("pool_id") @db.Uuid
+  number        Int
+  dcId          String      @map("dc_id") @db.Uuid
+  vehicleId     String?     @map("vehicle_id") @db.Uuid
+  status        RouteStatus
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamp
+  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+  fromStorageId String?     @map("from_storage_id") @db.Uuid()
+  toStorageId   String?     @map("to_storage_id") @db.Uuid()
+
+  storage         Storage         @relation(fields: [dcId], references: [id])
+  pool            Pool            @relation(fields: [poolId], references: [id])
+  fromStorage     Storage?        @relation(name: "fromStorage", fields: [fromStorageId], references: [id])
+  toStorage       Storage?        @relation(name: "toStorage", fields: [toStorageId], references: [id])
+  orderDeliveries OrderDelivery[]
+  storageDebit    StorageDebit[]
+  vehicle         Vehicle?        @relation(fields: [vehicleId], references: [id])
+
+  @@map("route")
+}
+
+enum StorageType {
+  DC
+  PUP
+}
+
+enum StorageStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Storage {
+  id        String        @id @db.Uuid
+  name      String
+  code      String        @db.VarChar(16)
+  address   String
+  latitude  Decimal       @db.Decimal(12, 10)
+  longitude Decimal       @db.Decimal(12, 10)
+  type      StorageType
+  status    StorageStatus
+  tz        String        @db.VarChar(50)
+  phone     String?       @db.VarChar(20)
+  companyId String        @map("company_id") @db.Uuid
+  zoneId    String        @map("zone_id") @db.Uuid
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamp
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  company    Company         @relation(fields: [companyId], references: [id])
+  zone       Zone            @relation(fields: [zoneId], references: [id])
+  pools      Pool[]
+  cells      Cell[]
+  cellOrders CellOrder[]
+  workers    StorageWorker[]
+  routes     Route[]
+  orders     Order[]
+  payments   StorageDebit[]
+  point      SelloPoint?
+  from       Route[]         @relation(name: "fromStorage")
+  to         Route[]         @relation(name: "toStorage")
+  tTNRow     TTNRow[]
+  drivers    Driver[]
+  stockTakes StockTake[]
+
+  @@map("storage")
+}
+
+model StorageWorker {
+  id        String   @id @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  storageId String   @map("storage_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  user         User           @relation(fields: [userId], references: [id])
+  storage      Storage        @relation(fields: [storageId], references: [id])
+  tasks        Task[]
+  storageDebit StorageDebit[]
+
+  @@map("storage_worker")
+}
+
+enum MileType {
+  FIRST_MILE
+  LAST_MILE
+}
+
+enum OrderDeliveryStatus {
+  CREATED
+  ROUTE_PLANNED
+  ROUTED
+  COURIER_TOOK
+  DELIVERED
+  COURIER_ON_POINT
+}
+
+model OrderDelivery {
+  id            String              @id @db.Uuid
+  documentActId String?             @map("document_act_id") @db.Uuid
+  routeId       String?             @map("route_id") @db.Uuid
+  orderId       String              @map("order_id") @db.Uuid
+  poolId        String              @map("pool_id") @db.Uuid
+  mileType      MileType            @map("mile_type")
+  status        OrderDeliveryStatus
+  position      Int?
+  fromPointId   String              @unique @map("from_point_id") @db.Uuid
+  toPointId     String              @unique @map("to_point_id") @db.Uuid
+
+  route Route?              @relation(fields: [routeId], references: [id])
+  pools PoolOrderDelivery[]
+  order Order               @relation(fields: [orderId], references: [id])
+  from  DeliveryPoint       @relation(name: "DeliveryFromPoint", fields: [fromPointId], references: [id])
+  to    DeliveryPoint       @relation(name: "DeliveryToPoint", fields: [toPointId], references: [id])
+
+  @@map("order_delivery")
+}
+
+model DeliveryPoint {
+  id        String    @id @db.Uuid
+  zoneId    String    @map("zone_id") @db.Uuid
+  sourceId  String    @map("source_id") @db.Uuid
+  type      PointType
+  latitude  Decimal   @db.Decimal(12, 10)
+  longitude Decimal   @db.Decimal(12, 10)
+
+  zone              Zone           @relation(fields: [zoneId], references: [id])
+  fromOrderDelivery OrderDelivery? @relation(name: "DeliveryFromPoint")
+  toOrderDelivery   OrderDelivery? @relation(name: "DeliveryToPoint")
+
+  @@map("delivery_point")
+}
+
+model Zone {
+  id        String   @id @db.Uuid
+  name      String   @db.VarChar(255)
+  geoId     String   @map("geo_id") @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  company             Company              @relation(fields: [companyId], references: [id])
+  fromImRoutes        ImRoute[]            @relation(name: "fromZone")
+  toImRoutes          ImRoute[]            @relation(name: "toZone")
+  storages            Storage[]
+  deliveryPoints      DeliveryPoint[]
+  cargoProviderPoints CargoProviderPoint[]
+
+  @@unique([geoId, companyId], name: "zoneIdentifier")
+  @@map("zone")
+}
+
+model ImRoute {
+  id              String @id @db.Uuid
+  fromZoneId      String @map("from_zone_id") @db.Uuid
+  toZoneId        String @map("to_zone_id") @db.Uuid
+  cargoProviderId String @map("cargo_provider_id") @db.Uuid
+  delayDate       Int    @map("delay_date")
+
+  cargoProvider          CargoProvider           @relation(fields: [cargoProviderId], references: [id])
+  fromZone               Zone                    @relation(name: "fromZone", fields: [fromZoneId], references: [id])
+  toZone                 Zone                    @relation(name: "toZone", fields: [toZoneId], references: [id])
+  cargoProviderSchedules CargoProviderSchedule[]
+  cargoProviderHolidays  CargoProviderHoliday[]
+
+  @@unique([fromZoneId, toZoneId])
+  @@map("im_route")
+}
+
+model CargoProvider {
+  id           String   @id @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  name         String   @db.VarChar(255)
+  delayHoliday Int      @map("delay_holiday") @db.SmallInt()
+  phone        String?  @db.VarChar(20)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  schedules           CargoProviderSchedule[]
+  holidays            CargoProviderHoliday[]
+  cargoProviderPoints CargoProviderPoint[]
+  imRoutes            ImRoute[]
+
+  @@map("cargo_provider")
+}
+
+model CargoProviderSchedule {
+  id              String    @id @db.Uuid
+  dayOfWeek       DayOfWeek @map("day_of_week")
+  cargoProviderId String    @map("cargo_provider_id") @db.Uuid
+  imRouteId       String    @map("im_route_id") @db.Uuid
+  deadline        DateTime  @db.Time
+  takeFrom        DateTime  @map("take_from") @db.Time
+
+  cargoProvider CargoProvider @relation(fields: [cargoProviderId], references: [id])
+  imRoute       ImRoute       @relation(fields: [imRouteId], references: [id])
+
+  @@unique([dayOfWeek, cargoProviderId, imRouteId])
+  @@map("cargo_provider_schedule")
+}
+
+model CargoProviderHoliday {
+  id              String   @id @db.Uuid
+  isDayOff        Boolean  @map("is_day_off")
+  cargoProviderId String   @map("cargo_schedule_id") @db.Uuid
+  imRouteId       String   @map("im_route_id") @db.Uuid
+  date            DateTime @db.Date
+  deadline        DateTime @db.Time
+
+  cargoProvider CargoProvider @relation(fields: [cargoProviderId], references: [id])
+  imRoute       ImRoute       @relation(fields: [imRouteId], references: [id])
+
+  @@map("cargo_provider_holiday")
+}
+
+model CargoProviderPoint {
+  id              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  zoneId          String  @map("zone_id") @db.Uuid
+  cargoProviderId String  @map("cargo_provider_id") @db.Uuid
+  latitude        Decimal @db.Decimal(12, 10)
+  longitude       Decimal @db.Decimal(12, 10)
+  address         String? @db.VarChar(255)
+
+  zone          Zone          @relation(fields: [zoneId], references: [id])
+  cargoProvider CargoProvider @relation(fields: [cargoProviderId], references: [id])
+
+  @@unique([zoneId, cargoProviderId])
+  @@map("cargo_provider_point")
+}
+
+model RoutePlanner {
+  id        String   @id @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  startTime DateTime @map("start_time") @db.Time
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([startTime, companyId])
+  @@map("route_planner")
+}
+
+enum VehicleStatus {
+  ACTIVE
+  INACTIVE
+  BUSY
+}
+
+enum VehicleSource {
+  INTERNAL
+  EXTERNAL
+}
+
+model UserTable {
+  id         String   @id @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  table      String   @db.VarChar(50)
+  perPage    Int?     @map("per_page")
+  columns    String[]
+  filter     Json?
+  exclusions String[]
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_table")
+}
+
+model UserCompany {
+  userId    String  @map("user_id") @db.Uuid
+  companyId String  @map("company_id") @db.Uuid
+  groupId   String? @map("group_id") @db.Uuid
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@id([userId, companyId])
+  @@map("user_company")
+}
+
+enum CellType {
+  ACCEPTANCE_ZONE
+  PICKING_ZONE
+  PACKAGING_ZONE
+  STORAGE_ZONE
+  PALLET_STORAGE_ZONE
+  RETURN_ZONE
+  SHIPMENT_ZONE
+  TRANSPORT_UNIT
+  SECTION
+  SHELF
+  CELL
+}
+
+model Cell {
+  id        String   @id @db.Uuid
+  type      CellType
+  code      String
+  name      String
+  storageId String   @map("storage_id") @db.Uuid
+  isMobile  Boolean  @default(false)
+  parentId  String?  @map("parent_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  storage        Storage     @relation(fields: [storageId], references: [id])
+  children       Cell[]      @relation(name: "CellToCell")
+  parent         Cell?       @relation(name: "CellToCell", fields: [parentId], references: [id])
+  orders         CellOrder[] @relation(name: "cell")
+  nextCellOrders CellOrder[] @relation(name: "nextCell")
+  toZone         Task[]
+
+  @@unique([code, storageId])
+  @@map("cell")
+}
+
+model CellOrder {
+  id         String  @id @db.Uuid
+  cellId     String  @map("cell_id") @db.Uuid
+  orderId    String  @map("order_id") @db.Uuid
+  nextCellId String? @map("next_cell_id") @db.Uuid
+  storageId  String  @map("storage_id") @db.Uuid
+
+  cell     Cell    @relation(name: "cell", fields: [cellId], references: [id])
+  nextCell Cell?   @relation(name: "nextCell", fields: [nextCellId], references: [id])
+  order    Order   @relation(fields: [orderId], references: [id])
+  storage  Storage @relation(fields: [storageId], references: [id])
+
+  @@unique([cellId, orderId])
+  @@map("cell_order")
+}
+
+enum TaskStatus {
+  CREATED
+  COMPLETED
+}
+
+model Task {
+  id              String     @id @db.Uuid
+  toZoneId        String     @map("to_zone_id") @db.Uuid
+  status          TaskStatus
+  storageWorkerId String     @map("storage_worker_id") @db.Uuid
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamp
+  completedAt     DateTime   @updatedAt @map("completed_at") @db.Timestamp
+
+  worker StorageWorker @relation(fields: [storageWorkerId], references: [id])
+  toZone Cell          @relation(fields: [toZoneId], references: [id])
+  orders TaskOrder[]
+
+  @@map("task")
+}
+
+model TaskOrder {
+  taskId  String  @map("task_id") @db.Uuid
+  orderId String  @map("order_id") @db.Uuid
+  moved   Boolean @default(false)
+
+  task  Task  @relation(fields: [taskId], references: [id])
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@id([taskId, orderId])
+  @@map("task_order")
+}
+
+model Tariff {
+  id                 String       @id @db.Uuid
+  companyId          String       @map("company_id") @db.Uuid
+  weight             Int
+  pupDeliveryPrice   Int?         @map("pup_delivery_price")
+  pointDeliveryPrice Int?         @map("point_delivery_price")
+  deliveryType       DeliveryType @map("delivery_type")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("tariff")
+}
+
+// -------------------------------- --------------------------------
+
+model Driver {
+  id                String       @id @map("id") @db.Uuid
+  idCardNumber      String       @map("id_card_number") @db.VarChar(20)
+  idCardExpireDate  DateTime     @map("id_card_expire_date") @db.Date
+  licenseNumber     String       @map("license_number") @db.VarChar(20)
+  licenseExpireDate DateTime     @map("license_expire_date") @db.Date
+  photo             String?      @db.VarChar(50)
+  status            DriverStatus @default(AVAILABLE)
+  vehicleId         String?      @map("vehicle_id") @db.Uuid
+  dcId              String?      @map("dc_id") @db.Uuid
+  callerId          String?      @map("caller_id") @db.VarChar(50)
+  callerPassword    String?      @map("caller_password") @db.VarChar(50)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamp
+  updatedAt         DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  vehicle                      Vehicle?                       @relation(fields: [vehicleId], references: [id])
+  vehicleOptimizationAlgorithm VehicleOptimizationAlgorithm[]
+  user                         User                           @relation(fields: [id], references: [id])
+  storage                      Storage?                       @relation(fields: [dcId], references: [id])
+
+  @@map("driver")
+}
+
+model Vehicle {
+  id                 String            @id @default(uuid()) @db.Uuid
+  loadCapacity       Int               @default(0) @map("load_capacity")
+  plateNumber        String            @unique @map("plate_number")
+  vehicleProducer    VehicleProducer   @relation(fields: [vehicleProducerId], references: [id])
+  vehicleProducerId  Int               @map("vehicle_producer_id")
+  vehicleModel       VehicleModel      @relation(fields: [vehicleModelId], references: [id])
+  vehicleModelId     Int               @map("vehicle_model_id")
+  vehicleType        VehicleType       @relation(fields: [vehicleTypeId], references: [id])
+  vehicleTypeId      Int               @map("vehicle_type_id")
+  vehicleBodyType    VehicleBodyType?  @relation(fields: [vehicleBodyTypeId], references: [id])
+  vehicleBodyTypeId  Int?              @map("vehicle_body_type_id")
+  vehicleColour      VehicleColour?    @relation(fields: [vehicleColourId], references: [id])
+  vehicleColourId    Int?              @map("vehicle_colour_id")
+  luggageDimension   LuggageDimension? @relation(fields: [luggageDimensionId], references: [id])
+  luggageDimensionId Int?              @unique @map("luggage_dimension_id")
+  manufactureYear    Int?              @map("manufacture_year")
+  licensePlate       String            @map("license_plate") @db.VarChar(20)
+  status             VehicleStatus     @default(ACTIVE)
+  companyId          String            @map("company_id") @db.Uuid
+  driverId           String?           @unique @map("driver_id") @db.Uuid
+  source             VehicleSource     @default(INTERNAL)
+
+  drivers                      Driver[]
+  routes                       Route[]
+  mileages                     VehicleMileage[]
+  VehicleOptimizationAlgorithm VehicleOptimizationAlgorithm[]
+  Company                      Company                        @relation(fields: [companyId], references: [id])
+
+  @@map("vehicle")
+}
+
+model LuggageDimension {
+  id     Int @id
+  length Int
+  width  Int
+  height Int
+
+  vehicle Vehicle[]
+
+  @@map("luggage_dimension")
+}
+
+model VehicleProducer {
+  id   Int    @id
+  name String @db.VarChar(50)
+
+  vehicle Vehicle[]
+
+  @@map("vehicle_producer")
+}
+
+model VehicleModel {
+  id   Int    @id
+  name String @db.VarChar(50)
+
+  vehicle Vehicle[]
+
+  @@map("vehicle_model")
+}
+
+model VehicleType {
+  id   Int    @id
+  name String @db.VarChar(50)
+
+  vehicle Vehicle[]
+
+  @@map("vehicle_type")
+}
+
+model VehicleBodyType {
+  id   Int    @id
+  name String @db.VarChar(50)
+
+  vehicle Vehicle[]
+
+  @@map("vehicle_body_type")
+}
+
+model VehicleColour {
+  id   Int    @id
+  name String @db.VarChar(50)
+
+  vehicle Vehicle[]
+
+  @@map("vehicle_colour")
+}
+
+model VehicleMileage {
+  vehicleId    String @id @map("vehicle_id") @db.Uuid
+  currentDay   Int    @map("current_day")
+  lastDay      Int    @map("last_day")
+  total        Int
+  mileageLimit Int    @default(0) @map("mileage_limit")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+
+  @@map("vehicle_mileage")
+}
+
+model VehicleOptimizationAlgorithm {
+  vehicleId       String        @id @map("vehicle_id") @db.Uuid
+  driverId        String?       @unique @map("driver_id") @db.Uuid
+  status          VehicleStatus @default(ACTIVE)
+  utilizedPercent Float         @default(0) @map("utilized_percent")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamp
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+  driver  Driver? @relation(fields: [driverId], references: [id])
+
+  @@map("vehicle_optimization_algorithm")
+}
+
+model Dimension {
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  weight Int    @db.Integer
+  length Int    @db.Integer
+  width  Int    @db.Integer
+  height Int    @db.Integer
+
+  order Order?
+
+  @@map("dimension")
+}
+
+enum Transfer {
+  CREDIT
+  DEBIT
+}
+
+model StorageDebit {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storageId   String?          @map("storage_id") @db.Uuid
+  routeId     String?          @map("route_id") @db.Uuid
+  orderId     String?          @map("order_id") @db.Uuid
+  payerId     String?          @map("payer_id") @db.Uuid
+  recipientId String?          @map("recipient_id") @db.Uuid
+  paymentType OrderPaymentType @map("payment_type")
+  amount      Int
+  isApproved  Boolean          @map("is_approved")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  approvedAt  DateTime         @default(now()) @updatedAt @map("approved_at")
+
+  storageWorker StorageWorker? @relation(fields: [recipientId], references: [id])
+  order         Order?         @relation(fields: [orderId], references: [id])
+  route         Route?         @relation(fields: [routeId], references: [id])
+  storage       Storage?       @relation(fields: [storageId], references: [id])
+
+  @@map("storage_debit")
+}
+
+model OrderPayment {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId    String           @map("order_id") @db.Uuid
+  type       OrderPaymentType
+  charge     Int
+  creditedAt DateTime         @default(now()) @map("credited_at") @db.Timestamptz(0)
+  debitedAt  DateTime         @default(now()) @updatedAt @map("debited_at") @db.Timestamptz(0)
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("order_payment")
+}
+
+model SelloPoint {
+  id        Int    @id @db.Integer
+  storageId String @unique @map("storage_id") @db.Uuid
+
+  storage Storage @relation(fields: [storageId], references: [id])
+
+  @@map("sello_point")
+}
+
+model TimeOfDelivery {
+  id        String   @id @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  from      DateTime @db.Time
+  to        DateTime @db.Time
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("time_of_delivery")
+}
+
+model DocumentAct {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId           String    @db.Uuid
+  comitent          String    @db.VarChar()
+  commissioner      String    @db.VarChar()
+  commissionerAgent String?   @map("commissioner_agent") @db.VarChar()
+  contractNumber    String?   @map("contract_number") @db.VarChar()
+  contractDate      DateTime? @map("contract_date") @db.Date
+  specialMarks      String?   @map("special_marks") @db.VarChar(10000)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  order   Order    @relation(fields: [orderId], references: [id])
+  actRows ActRow[]
+
+  @@map("document_act")
+}
+
+model ActRow {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  docActId  String    @map("doc_act_id") @db.Uuid
+  dcName    String    @map("dc_name") @db.VarChar()
+  userId    String    @map("user_id") @db.Uuid
+  note      String?   @db.VarChar(1000)
+  date      DateTime? @db.Date
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  act  DocumentAct @relation(fields: [docActId], references: [id])
+  user User        @relation(fields: [userId], references: [id])
+
+  @@map("act_row")
+}
+
+model DocumentTTN {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId          String   @map("order_id") @db.Uuid
+  senderAddress    String   @map("sender_address")
+  recipientAddress String   @map("recipient_address")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  order   Order    @relation(fields: [orderId], references: [id])
+  ttnRows TTNRow[]
+
+  @@map("document_ttn")
+}
+
+model TTNRow {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ttnId     String    @map("ttn_id") @db.Uuid
+  storageId String    @map("storage_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  note      String?   @db.VarChar(1000)
+  date      DateTime? @db.Date
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp
+
+  user    User        @relation(fields: [userId], references: [id])
+  storage Storage     @relation(fields: [storageId], references: [id])
+  tTN     DocumentTTN @relation(fields: [ttnId], references: [id])
+
+  @@map("ttn_row")
+}
+
+enum IssueStatus {
+  CREATED
+  RESOLVED
+}
+
+model Issue {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String      @db.VarChar(100)
+  project   String?     @db.VarChar(20)
+  service   String?     @db.VarChar(20)
+  module    String?     @db.VarChar(20)
+  action    String?     @db.VarChar(50)
+  userId    String?     @map("user_id") @db.Uuid
+  status    IssueStatus
+  payload   Json
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(0)
+  updatedAt DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@map("issue")
+}
+
+model StockTake {
+  id        String   @id @default(uuid()) @db.Uuid
+  storageId String   @map("storage_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  storage         Storage           @relation(fields: [storageId], references: [id])
+  stockTakedOrder StockTakedOrder[]
+
+  @@map("stock_take")
+}
+
+model StockTakedOrder {
+  id           String  @id @default(uuid()) @db.Uuid
+  orderId      String  @map("order_id") @db.Uuid
+  storageId    String  @map("storage_id") @db.Uuid
+  stockTakedId String  @map("stock_take_id") @db.Uuid
+  exist        Boolean
+
+  stockTake StockTake @relation(fields: [stockTakedId], references: [id])
+
+  @@map("stock_take_order")
+}
+
+model OrderProperty {
+  id      String  @id @default(uuid()) @db.Uuid
+  orderId String  @map("order_id") @db.Uuid
+  name    String  @db.VarChar(255)
+  value   Boolean
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("order_property")
+}
